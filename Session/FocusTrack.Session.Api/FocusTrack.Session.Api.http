@@ -1,0 +1,6 @@
+@FocusTrack.Session.Api_HostAddress = http://localhost:5115
+
+GET {{FocusTrack.Session.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

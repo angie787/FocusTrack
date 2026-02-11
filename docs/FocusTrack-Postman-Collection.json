@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "FocusTrack API",
+    "description": "Backend-only testing. Get token from Keycloak first, then use Bearer token for all API calls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5029", "description": "Gateway – use 5029 for Visual Studio + Docker, 5000 for full Docker" },
+    { "key": "keycloak_url", "value": "http://localhost:9080" },
+    { "key": "realm", "value": "focus-track" },
+    { "key": "client_id", "value": "focus-track-client" },
+    { "key": "client_secret", "value": "ooQJPaasjzeqKwa5fQGVPGD9ui7Kdg2a" },
+    { "key": "access_token", "value": "" },
+    { "key": "session_id", "value": "" },
+    { "key": "user_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Token (Keycloak)",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "client_secret", "value": "{{client_secret}}" },
+                { "key": "username", "value": "testuser" },
+                { "key": "password", "value": "testuser" }
+              ]
+            },
+            "url": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token",
+            "description": "Get access_token. Copy 'access_token' from response into collection variable 'access_token' or env. Enable Direct access grants on Keycloak client."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/auth/logout",
+            "description": "U5 – Revokes refresh token with OIDC and clears server-side session."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/healthz"
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/health/readyz"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions (U2)",
+      "item": [
+        {
+          "name": "Create Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Data Structures – Arrays\",\n  \"startTime\": \"2025-04-11T08:15:00Z\",\n  \"mode\": 1\n}"
+            },
+            "url": "{{base_url}}/api/sessions",
+            "description": "Mode: 0=Reading, 1=Coding, 2=VideoCourse, 3=Practice. Save 'id' from response as session_id."
+          }
+        },
+        {
+          "name": "Get Session by Id",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "List Sessions",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions?page=1&pageSize=20"
+          }
+        },
+        {
+          "name": "Update Session",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Updated topic\",\n  \"endTime\": \"2025-04-11T09:05:00Z\",\n  \"mode\": 2\n}"
+            },
+            "url": "{{base_url}}/api/sessions/{{session_id}}"
+          }
+        },
+        {
+          "name": "Delete Session",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions/{{session_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sharing (U4)",
+      "item": [
+        {
+          "name": "Share Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [ \"other-user-id\" ]\n}"
+            },
+            "url": "{{base_url}}/api/sessions/{{session_id}}/share"
+          }
+        },
+        {
+          "name": "Create Public Link",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions/{{session_id}}/public-link"
+          }
+        },
+        {
+          "name": "Get by Public Link (no auth)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/sessions/public/TOKEN_FROM_PUBLIC_LINK_URL",
+            "description": "Replace TOKEN_FROM_PUBLIC_LINK_URL with token from Create Public Link response URL."
+          }
+        },
+        {
+          "name": "Revoke Public Link",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions/{{session_id}}/public-link/revoke"
+          }
+        },
+        {
+          "name": "Unshare",
+          "request": {
+            "method": "DELETE",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/api/sessions/{{session_id}}/share/SHARED_WITH_USER_ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (A1, A2, A3)",
+      "item": [
+        {
+          "name": "A1 – Filter Sessions",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/admin/sessions?page=1&pageSize=10",
+            "description": "Requires Admin role. Optional: userId, mode, startDateFrom, startDateTo, endDateFrom, endDateTo, minDuration, maxDuration, orderBy, direction. Check X-Total-Count."
+          }
+        },
+        {
+          "name": "A2 – Monthly Focus Statistics",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": "{{base_url}}/admin/statistics/monthly-focus?page=1&pageSize=10&orderBy=TotalDurationMin&direction=desc",
+            "description": "Requires Admin role. Check X-Total-Count."
+          }
+        },
+        {
+          "name": "A3 – Set User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Suspended\"\n}"
+            },
+            "url": "{{base_url}}/admin/users/{{user_id}}/status",
+            "description": "Requires Admin role. status: Active | Suspended | Deactivated."
+          }
+        }
+      ]
+    }
+  ]
+}

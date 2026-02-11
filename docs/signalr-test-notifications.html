@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SignalR – Session shared</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 1rem auto; padding: 0 1rem; }
+    input, button { margin: 0.25rem 0; }
+    input[type="text"] { width: 100%; box-sizing: border-box; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; cursor: pointer; }
+    #log { background: #f5f5f5; padding: 0.75rem; margin-top: 1rem; white-space: pre-wrap; font-size: 0.9rem; max-height: 300px; overflow-y: auto; }
+    .ok { color: green; }
+    .err { color: red; }
+  </style>
+</head>
+<body>
+  <p>When the owner shares a session, you should receive a <code>SessionShared</code> event here.</p>
+  <p>
+    <label>Notification API base URL: <input type="text" id="baseUrl" value="http://localhost:5101" /></label><br />
+    <label>Keycloak user UUID: <input type="text" id="userId" placeholder="user id from Keycloak" /></label>
+  </p>
+  <p>
+    <button id="connect">Connect</button>
+    <button id="disconnect">Disconnect</button>
+  </p>
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8/dist/browser/signalr.min.js"></script>
+  <script>
+    const logEl = document.getElementById('log');
+    function log(msg, isError) {
+      const line = document.createElement('div');
+      line.className = isError ? 'err' : 'ok';
+      line.textContent = new Date().toISOString().slice(11, 23) + ' ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    let connection = null;
+
+    document.getElementById('connect').onclick = async function () {
+      const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+      const userId = document.getElementById('userId').value.trim();
+      if (!userId) {
+        log('Enter the other user ID (Keycloak user UUID).', true);
+        return;
+      }
+      const url = baseUrl + '/hubs/notifications?userId=' + encodeURIComponent(userId);
+      if (connection) {
+        try { await connection.stop(); } catch (_) {}
+      }
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(url)
+        .withAutomaticReconnect()
+        .build();
+      connection.on('SessionShared', function (payload) {
+        log('SessionShared received: ' + JSON.stringify(payload));
+      });
+      connection.onreconnecting(() => log('Reconnecting...'));
+      connection.onreconnected(() => log('Reconnected.'));
+      connection.onclose((e) => log('Connection closed. ' + (e ? e.message : ''), !!e));
+      try {
+        await connection.start();
+        log('Connected as user_' + userId + '. Share a session from Postman as owner.');
+      } catch (err) {
+        log('Connect failed: ' + err.message, true);
+      }
+    };
+
+    document.getElementById('disconnect').onclick = async function () {
+      if (connection) {
+        try { await connection.stop(); } catch (_) {}
+        log('Disconnected.');
+        connection = null;
+      }
+    };
+  </script>
+</body>
+</html>

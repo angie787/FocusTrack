@@ -1,0 +1,13 @@
+**/.dockerignore
+**/.env
+**/.git
+**/.vs
+**/bin
+**/obj
+**/*.user
+**/*.suo
+**/node_modules
+**/.DS_Store
+*.md
+*.sln
+!FocusTrack.sln
